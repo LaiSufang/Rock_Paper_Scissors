@@ -3,6 +3,8 @@ import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.util.ArrayList;
+import java.util.Random;
 
 public class RockPaperScissorsFrame extends JFrame {
     // Declare the components of the frame
@@ -15,6 +17,15 @@ public class RockPaperScissorsFrame extends JFrame {
     JScrollPane resultScrollPane;
     int playerWins, computerWins, ties, total;
     Color backgroundColor = new Color(158, 194, 220);
+
+    int playerRockMoveCount, playerPaperMoveCount, playerScissorsMoveCount;
+    Move playerLastMove,playerCurrentMove, compterMove;
+    ArrayList<Strategy> allStrategies = new ArrayList<Strategy>();
+    ArrayList<Strategy> noCheatingStrategies = new ArrayList<Strategy>();
+    String currentStrategy;
+    int cheatCount;
+
+    Random random = new Random();
 
     // Constructor to set up the frame
     RockPaperScissorsFrame() {
@@ -38,6 +49,9 @@ public class RockPaperScissorsFrame extends JFrame {
         mainPanel.add(playPanel);
 
         add(mainPanel);
+
+        createStrategies();
+
         setVisible(true); //this has to be the last line of the constructor so that all components are added before the frame is displayed
 
     }
@@ -53,58 +67,69 @@ public class RockPaperScissorsFrame extends JFrame {
         // Create an instance of JButton to add to the frame
         rockButton = new JButton("Rock");
         rockButton.addActionListener((ActionEvent event) -> {
-            if (getComputerMove() == 0) {
-                resultArea.append("Rock vs Rock: It's a tie!\n");
-                ties++;
-                tiesField.setText(Integer.toString(ties));
-
-            } else if (getComputerMove() == 1) {
-                resultArea.append("Rock vs Paper: Computer wins!\n");
+           playerCurrentMove = Move.Rock;
+           playerRockMoveCount++;
+           compterMove = determineComputerMove();
+           if (compterMove == Move.Rock) {
+               ties++;
+               tiesField.setText(Integer.toString(ties));
+               resultArea.append("Rock vs Rock: It's a tie! ("+ currentStrategy +") \n");
+           }
+              else if (compterMove == Move.Paper) {
                 computerWins++;
                 computerWinsField.setText(Integer.toString(computerWins));
-            } else {
-                resultArea.append("Rock vs Scissors: Player wins!\n");
+                resultArea.append("Rock vs Paper: Computer wins! ("+ currentStrategy +") \n");
+              }
+              else {
                 playerWins++;
                 playerWinsField.setText(Integer.toString(playerWins));
-            }
-            total++;
-            totalField.setText(Integer.toString(total));
+                resultArea.append("Rock vs Scissors: Player wins! ("+ currentStrategy +") \n");
+              }
+              playerLastMove = Move.Rock;
         });
         paperButton = new JButton("Paper");
         paperButton.addActionListener((ActionEvent event) -> {
-            if (getComputerMove() == 0) {
-                resultArea.append("Paper vs Rock: Player wins!\n");
+            playerCurrentMove = Move.Paper;
+            playerPaperMoveCount++;
+            compterMove = determineComputerMove();
+            if (compterMove == Move.Rock) {
                 playerWins++;
                 playerWinsField.setText(Integer.toString(playerWins));
-            } else if (getComputerMove() == 1) {
-                resultArea.append("Paper vs Paper: It's a tie!\n");
+                resultArea.append("Paper vs Rock: Player wins! ("+ currentStrategy +") \n");
+            }
+            else if (compterMove == Move.Paper) {
                 ties++;
                 tiesField.setText(Integer.toString(ties));
-            } else {
-                resultArea.append("Paper vs Scissors: Computer wins!\n");
+                resultArea.append("Paper vs Paper: It's a tie! ("+ currentStrategy +") \n");
+            }
+            else {
                 computerWins++;
                 computerWinsField.setText(Integer.toString(computerWins));
+                resultArea.append("Paper vs Scissors: Computer wins! ("+ currentStrategy +") \n");
             }
-            total++;
-            totalField.setText(Integer.toString(total));
+            playerLastMove = Move.Paper;
         });
         scissorsButton = new JButton("Scissors");
         scissorsButton.addActionListener((ActionEvent event) -> {
-            if (getComputerMove() == 0) {
-                resultArea.append("Scissors vs Rock: Computer wins!\n");
+            playerCurrentMove = Move.Scissors;
+            playerScissorsMoveCount++;
+            compterMove = determineComputerMove();
+            if (compterMove == Move.Rock) {
                 computerWins++;
                 computerWinsField.setText(Integer.toString(computerWins));
-            } else if (getComputerMove() == 1) {
-                resultArea.append("Scissors vs Paper: Player wins!\n");
+                resultArea.append("Scissors vs Rock: Computer wins! ("+ currentStrategy +") \n");
+            }
+            else if (compterMove == Move.Paper) {
                 playerWins++;
                 playerWinsField.setText(Integer.toString(playerWins));
-            } else {
-                resultArea.append("Scissors vs Scissors: It's a tie!\n");
+                resultArea.append("Scissors vs Paper: Player wins! ("+ currentStrategy +") \n");
+            }
+            else {
                 ties++;
                 tiesField.setText(Integer.toString(ties));
+                resultArea.append("Scissors vs Scissors: It's a tie! ("+ currentStrategy +") \n");
             }
-            total++;
-            totalField.setText(Integer.toString(total));
+            playerLastMove = Move.Scissors;
         });
         quitButton = new JButton("Quit");
         quitButton.addActionListener((ActionEvent event) -> {
@@ -125,6 +150,27 @@ public class RockPaperScissorsFrame extends JFrame {
         playPanel.add(paperButton);
         playPanel.add(scissorsButton);
         playPanel.add(quitButton);
+    }
+
+    private Move determineComputerMove() {
+        Strategy strategyToUse;
+        if (total == 0) {
+            strategyToUse = allStrategies.get(random.nextInt(allStrategies.size()));
+
+            Strategy lastMoveStrategy = () -> performLastMoveStrategy();
+            allStrategies.add(lastMoveStrategy);
+            noCheatingStrategies.add(lastMoveStrategy);
+        }
+        else if ((float) cheatCount / total < 0.1) {
+            strategyToUse = allStrategies.get(random.nextInt(allStrategies.size()));
+        }
+        else {
+            strategyToUse = noCheatingStrategies.get(random.nextInt(noCheatingStrategies.size()));
+        }
+        Move computerMove = strategyToUse.determineMove();
+        total++;
+        totalField.setText(Integer.toString(total));
+        return computerMove;
     }
 
     private int getComputerMove() {
@@ -175,4 +221,92 @@ public class RockPaperScissorsFrame extends JFrame {
         resultPanel.add(resultScrollPane);
     }
 
+    private void createStrategies() {
+        Strategy randomStrategy = () -> performRandomStrategy();
+        allStrategies.add(randomStrategy);
+        noCheatingStrategies.add(randomStrategy);
+
+        Strategy leastUsedStrategy = () -> performLeastUsedStrategy();
+        allStrategies.add(leastUsedStrategy);
+        noCheatingStrategies.add(leastUsedStrategy);
+
+        Strategy mostUsedStrategy = () -> performMostUsedStrategy();
+        allStrategies.add(mostUsedStrategy);
+        noCheatingStrategies.add(mostUsedStrategy);
+
+        Strategy cheatStrategy = () -> performCheatStrategy();
+        allStrategies.add(cheatStrategy);
+    }
+
+    private Move performRandomStrategy() {
+        currentStrategy = "Random";
+        Move[] moves = Move.values();
+        return moves[random.nextInt(moves.length)];
+    }
+
+    private Move performLeastUsedStrategy() {
+        currentStrategy = "Least Used";
+        Move leastUsedMove;
+        if (playerRockMoveCount <= playerPaperMoveCount && playerRockMoveCount <= playerScissorsMoveCount) {
+            leastUsedMove = Move.Rock;
+        } else if (playerPaperMoveCount <= playerRockMoveCount && playerPaperMoveCount <= playerScissorsMoveCount) {
+            leastUsedMove = Move.Paper;
+        } else {
+            leastUsedMove = Move.Scissors;
+        }
+
+        if (leastUsedMove == Move.Rock) {
+            return Move.Paper;
+        }
+        else if (leastUsedMove == Move.Paper) {
+            return Move.Scissors;
+        }
+        else {
+            return Move.Rock;
+        }
+    }
+
+    private Move performMostUsedStrategy() {
+        currentStrategy = "Most Used";
+        Move mostUsedMove;
+        if (playerRockMoveCount >= playerPaperMoveCount && playerRockMoveCount >= playerScissorsMoveCount) {
+            mostUsedMove = Move.Rock;
+        } else if (playerPaperMoveCount >= playerRockMoveCount && playerPaperMoveCount >= playerScissorsMoveCount) {
+            mostUsedMove = Move.Paper;
+        } else {
+            mostUsedMove = Move.Scissors;
+        }
+        if (mostUsedMove == Move.Rock) {
+            return Move.Paper;
+        }
+        else if (mostUsedMove == Move.Paper) {
+            return Move.Scissors;
+        }
+        else {
+            return Move.Rock;
+        }
+    }
+
+    private Move performCheatStrategy() {
+        currentStrategy = "Cheat";
+        cheatCount++;
+        if (playerCurrentMove == Move.Rock) {
+            return Move.Paper;
+        } else if (playerCurrentMove == Move.Paper) {
+            return Move.Scissors;
+        } else {
+            return Move.Rock;
+        }
+    }
+
+    private Move performLastMoveStrategy() {
+        currentStrategy = "Last Move";
+        if (playerLastMove == Move.Rock) {
+            return Move.Paper;
+        } else if (playerLastMove == Move.Paper) {
+            return Move.Scissors;
+        } else {
+            return Move.Rock;
+        }
+    }
 }
